@@ -24,9 +24,32 @@ dependencies required.
 - Windows
 - Mac OS
 
+## How this add-in is installed
+
+**AutodeskFusionMCP is junctioned straight to the repo clone**, so a `git pull` updates what Fusion loads. Fusion's AddIns entry must be named exactly `AutodeskFusionMCP` and must point at the repo root (this add-in's files live at the root, not in a subfolder).
+
+Fusion does not pick up new code until the add-in restarts: restart Fusion, or press **Shift+S**, open **Add-Ins**, and **Stop** then **Run**.
+
+An automatic updater (coming soon, in the workstation repo) will pull updates hourly and notify you to restart Fusion.
+
+To create the junction on Windows, open a normal Command Prompt (not Run as administrator). `mklink /J` does not need elevation. Both paths below are absolute, so no `cd` is required. Run:
+
+```
+mklink /J "%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\AutodeskFusionMCP" "<path-to-this-clone>"
+```
+
+Replace `<path-to-this-clone>` with this repo's clone path on that PC. The active-folder path differs per PC. If a copied `AutodeskFusionMCP` folder already exists in AddIns, rename or remove it first so the junction can be created.
+
 ## Installation
 
-### Option A: Install from release zip (recommended)
+### Recommended: directory junction to a git clone (Windows)
+
+1. Clone this repository to a folder you keep on disk. The active-folder path differs per PC.
+2. Create the AddIns junction as described in [How this add-in is installed](#how-this-add-in-is-installed). Do not copy the folder into AddIns, and do not clone directly into the AddIns folder; a copy will not follow `git pull`.
+3. Restart Fusion (the manifest has `runOnStartup: true`), or press **Shift+S**, open the **Add-Ins** tab, and click **Run**. After a later `git pull`, restart the add-in (**Stop**, then **Run**) or restart Fusion.
+4. The server listens on `http://127.0.0.1:8765/mcp`.
+
+### Alternative: release zip (does not follow git pull)
 
 1. Download `AutodeskFusionMCP-v*.zip` from the
    [Releases](https://github.com/frankhommers/autodesk-fusion-mcp/releases)
@@ -40,15 +63,17 @@ dependencies required.
    **AutodeskFusionMCP**.
 5. The server listens on `http://127.0.0.1:8765/mcp`.
 
-### Option B: Clone from source
+A copied zip will not update when this repo changes. Prefer the junction install above if you want `git pull` to update what Fusion loads.
 
-1. Clone this repository into your Fusion add-ins folder:
-   - **macOS:** `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns/`
-   - **Windows:** `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\`
-2. Make sure the directory is named `AutodeskFusionMCP`.
-3. Open Fusion, press **Shift+S**, select the **Add-Ins** tab, and run
-   **AutodeskFusionMCP**.
-4. The server listens on `http://127.0.0.1:8765/mcp`.
+### macOS: symlink to a git clone
+
+On macOS, a symlink can serve the same role as a Windows directory junction. Open Terminal and run:
+
+```
+ln -s "<path-to-this-clone>" "$HOME/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns/AutodeskFusionMCP"
+```
+
+Replace `<path-to-this-clone>` with this repo's clone path on that Mac. Then start the add-in as in the Windows steps above.
 
 ## MCP Client Configuration
 
