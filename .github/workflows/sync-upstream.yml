@@ -1,0 +1,47 @@
+# Bring upstream's default branch into this fork's main once a day.
+#
+# Fast-forward when this fork has no commits of its own on top. Otherwise
+# create a normal merge commit. Never force-push.
+#
+# Conflicts, and merges that touch .github/workflows, are not pushed. The
+# default GITHUB_TOKEN cannot be granted the workflows permission that GitHub
+# requires for those files, so a person has to merge that update and push it.
+# When Issues are enabled, the job keeps a single open issue for the failure.
+
+name: Sync upstream
+
+on:
+  schedule:
+    # 06:17 UTC. Off the top of the hour so a busy minute is less likely to drop the run.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge upstream into main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ github.token }}
+
+      - name: Merge upstream into main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPOSITORY: frankhommers/autodesk-fusion-mcp
+          FORK_BRANCH: main
+          ISSUE_TITLE: Upstream sync conflict
+        run: bash .github/workflows/sync-upstream.sh

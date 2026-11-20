@@ -40,6 +40,16 @@ mklink /J "%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\AutodeskFusionMCP" 
 
 Replace `<path-to-this-clone>` with this repo's clone path on that PC. The active-folder path differs per PC. If a copied `AutodeskFusionMCP` folder already exists in AddIns, rename or remove it first so the junction can be created.
 
+### Daily sync from upstream
+
+The **Sync upstream** action runs every day, and you can also run it from the Actions tab. It brings [frankhommers/autodesk-fusion-mcp](https://github.com/frankhommers/autodesk-fusion-mcp) `main` into this fork's `main`. The PCs that fast-forward this repo pick that up on their next hourly pull.
+
+The action only moves `main` forward. It fast-forwards when it can. If this fork has its own commits, it adds a normal merge commit. It does not rewrite commits that are already on `main`.
+
+If the merge has conflicts, the action leaves `main` unchanged and the run fails. The log lists the conflicted files. When Issues are enabled on this fork, it also opens or updates one issue titled **Upstream sync conflict**, and a later successful run closes that issue. Merge upstream into `main` yourself and push without `--force`. The next run continues from that push.
+
+The action uses GitHub's default token. That token cannot push a change under `.github/workflows`. If upstream edits those files, the run fails and `main` stays as it is until a person merges that update and pushes it. If the schedule never starts, enable **Sync upstream** once on the Actions tab. If this repo is quiet for 60 days, GitHub turns the schedule off; enable the workflow again there.
+
 ## Installation
 
 ### Recommended: directory junction to a git clone (Windows)
