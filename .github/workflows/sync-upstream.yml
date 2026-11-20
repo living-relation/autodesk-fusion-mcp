@@ -1,0 +1,65 @@
+# Merge upstream main into this fork's main. Fast-forward when possible,
+# otherwise make a normal merge commit. Never force-push. On conflict, or when
+# the result edits .github/workflows, push nothing and fail.
+
+name: Sync upstream
+
+on:
+  schedule:
+    # 06:17 UTC, off the top of the hour.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Merge upstream main
+        env:
+          UPSTREAM_URL: https://github.com/frankhommers/autodesk-fusion-mcp.git
+        run: |
+          set -euo pipefail
+          export GIT_EDITOR=false GIT_MERGE_AUTOEDIT=no GIT_TERMINAL_PROMPT=0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags "$UPSTREAM_URL" main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "main already contains upstream main ($(git rev-parse --short FETCH_HEAD))."
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            git merge --ff-only FETCH_HEAD
+          elif ! git -c commit.gpgsign=false merge --no-ff --no-edit \
+            -m "Merge upstream main into main" FETCH_HEAD; then
+            echo "::error::Merge conflicts. Nothing was pushed. main is unchanged."
+            git diff --name-only --diff-filter=U
+            git merge --abort
+            exit 1
+          fi
+          files=$(
+            {
+              git diff --name-only origin/main HEAD -- .github/workflows
+              git log --name-only --pretty=format: origin/main..HEAD -- .github/workflows
+            } | sed '/^$/d' | sort -u
+          )
+          if [[ -n "$files" ]]; then
+            echo "::error::Refusing to push. This update changes .github/workflows, and the default token cannot push those files. main was left unchanged."
+            printf '%s\n' "$files"
+            exit 1
+          fi
+          git push origin HEAD:main

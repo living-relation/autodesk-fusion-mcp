@@ -40,6 +40,12 @@ mklink /J "%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\AutodeskFusionMCP" 
 
 Replace `<path-to-this-clone>` with this repo's clone path on that PC. The active-folder path differs per PC. If a copied `AutodeskFusionMCP` folder already exists in AddIns, rename or remove it first so the junction can be created.
 
+### Daily sync from upstream
+
+The **Sync upstream** action runs every day, and you can also run it from the Actions tab. It brings [frankhommers/autodesk-fusion-mcp](https://github.com/frankhommers/autodesk-fusion-mcp) `main` into this fork's `main`. Your PCs pick that up on their next hourly fast-forward.
+
+It fast-forwards when it can. If this fork has its own commits, it adds a normal merge commit. The push only moves `main` forward. If the merge conflicts, or if it changes `.github/workflows`, the run fails and `main` stays as it is. The log lists any conflicted files. Fix `main` by hand and push without `--force`.
+
 ## Installation
 
 ### Recommended: directory junction to a git clone (Windows)
