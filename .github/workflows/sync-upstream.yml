@@ -1,24 +1,17 @@
-# Bring upstream's default branch into this fork's main once a day.
-#
-# Fast-forward when this fork has no commits of its own on top. Otherwise
-# create a normal merge commit. Never force-push.
-#
-# Conflicts, and merges that touch .github/workflows, are not pushed. The
-# default GITHUB_TOKEN cannot be granted the workflows permission that GitHub
-# requires for those files, so a person has to merge that update and push it.
-# When Issues are enabled, the job keeps a single open issue for the failure.
+# Merge upstream main into this fork's main. Fast-forward when possible,
+# otherwise make a normal merge commit. Never force-push. On conflict, or when
+# the result edits .github/workflows, push nothing and fail.
 
 name: Sync upstream
 
 on:
   schedule:
-    # 06:17 UTC. Off the top of the hour so a busy minute is less likely to drop the run.
+    # 06:17 UTC, off the top of the hour.
     - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
-  issues: write
 
 concurrency:
   group: sync-upstream-main
@@ -26,7 +19,6 @@ concurrency:
 
 jobs:
   sync:
-    name: Merge upstream into main
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -35,13 +27,39 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          persist-credentials: true
           token: ${{ github.token }}
 
-      - name: Merge upstream into main
+      - name: Merge upstream main
         env:
-          GH_TOKEN: ${{ github.token }}
-          UPSTREAM_REPOSITORY: frankhommers/autodesk-fusion-mcp
-          FORK_BRANCH: main
-          ISSUE_TITLE: Upstream sync conflict
-        run: bash .github/workflows/sync-upstream.sh
+          UPSTREAM_URL: https://github.com/frankhommers/autodesk-fusion-mcp.git
+        run: |
+          set -euo pipefail
+          export GIT_EDITOR=false GIT_MERGE_AUTOEDIT=no GIT_TERMINAL_PROMPT=0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags "$UPSTREAM_URL" main
+          if git merge-base --is-ancestor FETCH_HEAD HEAD; then
+            echo "main already contains upstream main ($(git rev-parse --short FETCH_HEAD))."
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            git merge --ff-only FETCH_HEAD
+          elif ! git -c commit.gpgsign=false merge --no-ff --no-edit \
+            -m "Merge upstream main into main" FETCH_HEAD; then
+            echo "::error::Merge conflicts. Nothing was pushed. main is unchanged."
+            git diff --name-only --diff-filter=U
+            git merge --abort
+            exit 1
+          fi
+          files=$(
+            {
+              git diff --name-only origin/main HEAD -- .github/workflows
+              git log --name-only --pretty=format: origin/main..HEAD -- .github/workflows
+            } | sed '/^$/d' | sort -u
+          )
+          if [[ -n "$files" ]]; then
+            echo "::error::Refusing to push. This update changes .github/workflows, and the default token cannot push those files. main was left unchanged."
+            printf '%s\n' "$files"
+            exit 1
+          fi
+          git push origin HEAD:main
